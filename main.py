@@ -1,100 +1,88 @@
 import pygame
-import math
-from config import GRAVITY, DRAG
+import os
+import json
 
-# Initialize Pygame
+from game import game_loop, load_map
+
+
 pygame.init()
 
 # Screen settings
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Slingshot Simulation")
+pygame.display.set_caption("Main Menu")
 
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-CUBE_COLORS = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]  # Red, Green, Blue
+GRAY = (200, 200, 200)
 
-# Cube class
-class Cube:
-    def __init__(self, x, y, color):
-        self.x = x
-        self.y = y
-        self.size = 20
-        self.color = color
-        self.vx = 0
-        self.vy = 0
-        self.launched = False
 
-    def update(self):
-        if self.launched:
-            self.vy += GRAVITY  # Apply gravity
-            self.vx *= DRAG     # Apply drag
-            self.vy *= DRAG     # Apply drag
-            self.x += self.vx
-            self.y += self.vy
+def list_maps():
+    """List all available maps in the maps folder."""
+    maps_folder = "maps"
+    return [f.split(".json")[0] for f in os.listdir(maps_folder) if f.endswith(".json")]
 
-            # Bounce off walls
-            if self.x < 0 or self.x + self.size > WIDTH:
-                self.vx = -self.vx
-                self.x = max(0, min(self.x, WIDTH - self.size))
-            # Bounce off floor/ceiling
-            if self.y < 0 or self.y + self.size > HEIGHT:
-                self.vy = -self.vy
-                self.y = max(0, min(self.y, HEIGHT - self.size))
 
-    def draw(self, screen):
-        pygame.draw.rect(screen, self.color, (self.x, self.y, self.size, self.size))
+def display_map_selection():
+    """Show the available maps and let the user select one."""
+    font = pygame.font.SysFont(None, 36)
+    maps = list_maps()
+    selected_map = None
 
-# Slingshot mechanic
-def calculate_trajectory(start, end):
-    dx, dy = end[0] - start[0], end[1] - start[1]
-    return -dx / 5, -dy / 5  # Adjust scaling factor as needed
+    while not selected_map:
+        screen.fill(WHITE)
+        title = font.render("Select a map:", True, BLACK)
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 50))
 
-# Main game loop
-def main():
-    clock = pygame.time.Clock()
+        for i, map_name in enumerate(maps):
+            map_text = font.render(f"{i + 1}. {map_name}", True, BLACK)
+            screen.blit(map_text, (100, 150 + i * 40))
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key in range(pygame.K_1, pygame.K_1 + len(maps)):
+                    selected_map = maps[event.key - pygame.K_1]
+
+    return selected_map
+
+
+def main_menu():
+    """Display the opening screen."""
+    font = pygame.font.SysFont(None, 48)
+    small_font = pygame.font.SysFont(None, 36)
+
     running = True
-
-    # Initial settings
-    cube = Cube(200, HEIGHT - 100, CUBE_COLORS[0])
-    cubes = []
-    slingshot_anchor = (200, HEIGHT - 100)
-    dragging = False
-
     while running:
         screen.fill(WHITE)
+        title = font.render("Main Menu", True, BLACK)
+        option1 = small_font.render("1. Load Map", True, BLACK)
+        option2 = small_font.render("2. Create Map", True, BLACK)
+
+        screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 100))
+        screen.blit(option1, (WIDTH // 2 - option1.get_width() // 2, 200))
+        screen.blit(option2, (WIDTH // 2 - option2.get_width() // 2, 300))
+
+        pygame.display.flip()
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN and not cube.launched:
-                dragging = True
-            elif event.type == pygame.MOUSEBUTTONUP and dragging:
-                dragging = False
-                cube.vx, cube.vy = calculate_trajectory(slingshot_anchor, pygame.mouse.get_pos())
-                cube.launched = True
-                cubes.append(cube)
-                # Spawn a new cube
-                cube = Cube(200, HEIGHT - 100, CUBE_COLORS[len(cubes) % len(CUBE_COLORS)])
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_1:
+                    selected_map = display_map_selection()
+                    if selected_map:
+                        grid = load_map(selected_map)
+                        game_loop(grid)
+                        print(f"Playing map: {selected_map}")  # Replace with game logic
+                elif event.key == pygame.K_2:
+                    os.system("python map_generator.py")
 
-        # Update cube position
-        for c in cubes:
-            c.update()
-
-        # Draw slingshot line
-        if dragging:
-            pygame.draw.line(screen, BLACK, slingshot_anchor, pygame.mouse.get_pos(), 2)
-
-        # Draw cubes
-        for c in cubes:
-            c.draw(screen)
-        cube.draw(screen)
-
-        # Update display
-        pygame.display.flip()
-        clock.tick(60)
-
-    pygame.quit()
 
 if __name__ == "__main__":
-    main()
+    main_menu()

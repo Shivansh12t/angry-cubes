@@ -1,5 +1,6 @@
 import pygame
 import json
+import os
 
 # Initialize Pygame
 pygame.init()
@@ -16,6 +17,7 @@ GRAY = (200, 200, 200)
 ICE_BLUE = (173, 216, 230)
 BROWN = (139, 69, 19)
 RED = (255, 0, 0)
+BLACK = (0, 0, 0)
 
 # Block types
 EMPTY = 0
@@ -30,6 +32,9 @@ current_block = SLINGSHOT
 rows = HEIGHT // GRID_SIZE
 cols = WIDTH // GRID_SIZE
 grid = [[EMPTY for _ in range(cols)] for _ in range(rows)]
+
+# Create "maps" folder if it doesn't exist
+os.makedirs("maps", exist_ok=True)
 
 
 def draw_grid():
@@ -55,22 +60,12 @@ def draw_grid():
                 pygame.draw.rect(screen, BROWN, rect)
 
 
-def save_map(file_name="map.json"):
+def save_map(map_name):
     """Save the grid to a file."""
-    with open(file_name, "w") as f:
+    file_path = os.path.join("maps", f"{map_name}.json")
+    with open(file_path, "w") as f:
         json.dump(grid, f)
-    print(f"Map saved to {file_name}")
-
-
-def load_map(file_name="map.json"):
-    """Load the grid from a file."""
-    global grid
-    try:
-        with open(file_name, "r") as f:
-            grid = json.load(f)
-        print(f"Map loaded from {file_name}")
-    except FileNotFoundError:
-        print("No saved map found. Starting fresh.")
+    print(f"Map saved to {file_path}")
 
 
 def get_grid_pos(mouse_pos):
@@ -79,20 +74,51 @@ def get_grid_pos(mouse_pos):
     return y // GRID_SIZE, x // GRID_SIZE
 
 
+def text_input_box():
+    """Display a text input box to get the map name."""
+    font = pygame.font.SysFont(None, 36)
+    input_active = True
+    user_text = ""
+
+    while input_active:
+        screen.fill(WHITE)
+        prompt = font.render("Enter map name: ", True, BLACK)
+        input_box = pygame.Rect(200, HEIGHT // 2, 400, 50)
+        pygame.draw.rect(screen, GRAY, input_box, 2)
+
+        # Render user text
+        user_text_surface = font.render(user_text, True, BLACK)
+        screen.blit(prompt, (200, HEIGHT // 2 - 40))
+        screen.blit(user_text_surface, (input_box.x + 10, input_box.y + 10))
+
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_RETURN:
+                    input_active = False
+                elif event.key == pygame.K_BACKSPACE:
+                    user_text = user_text[:-1]
+                else:
+                    user_text += event.unicode
+
+    return user_text
+
+
 def main():
     global current_block
 
     clock = pygame.time.Clock()
     running = True
 
-    load_map()
-
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
-                # Change block type with number keys
                 if event.key == pygame.K_1:
                     current_block = SLINGSHOT
                 elif event.key == pygame.K_2:
@@ -100,7 +126,9 @@ def main():
                 elif event.key == pygame.K_3:
                     current_block = BROWN_BLOCK
                 elif event.key == pygame.K_s:
-                    save_map()
+                    map_name = text_input_box()
+                    save_map(map_name)
+                    running = False
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click to place block
                     row, col = get_grid_pos(pygame.mouse.get_pos())
@@ -109,7 +137,6 @@ def main():
                     row, col = get_grid_pos(pygame.mouse.get_pos())
                     grid[row][col] = EMPTY
 
-        # Draw everything
         draw_grid()
 
         # Display instructions
@@ -123,7 +150,7 @@ def main():
             "S: Save Map",
         ]
         for i, text in enumerate(instructions):
-            label = font.render(text, True, (0, 0, 0))
+            label = font.render(text, True, BLACK)
             screen.blit(label, (10, HEIGHT - 120 + i * 20))
 
         pygame.display.flip()
